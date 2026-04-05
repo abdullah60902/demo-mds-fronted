@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect } from "react";
 import { FaClipboardCheck, FaEye, FaUser, FaSearch } from "react-icons/fa";
 import Link from "next/link";
@@ -23,7 +24,7 @@ const StaffProfileAssessment = ({ staffId }) => {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [staffId]);
+  }, [staffId, token]);
 
   // Group assessments by client
   const clientMap = {};

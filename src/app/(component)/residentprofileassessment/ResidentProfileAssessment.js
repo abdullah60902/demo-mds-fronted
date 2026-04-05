@@ -45,7 +45,7 @@ const ResidentProfileAssessment = ({ clientId }) => {
       .then(r => r.json())
       .then(data => setClientData(data))
       .catch(console.error);
-  }, [clientId]);
+  }, [clientId, token]);
 
   // Fetch staff members for CARE PROVIDER dropdown
   useEffect(() => {
@@ -55,7 +55,7 @@ const ResidentProfileAssessment = ({ clientId }) => {
         setStaffMembers(data.allHr || data || []);
       })
       .catch(err => console.error(err));
-  }, []);
+  }, [token]);
 
   // Init special fields when type changes
   useEffect(() => {
@@ -1293,7 +1293,7 @@ const ResidentProfileAssessment = ({ clientId }) => {
             <div className="text-center py-16 bg-[#243041] rounded-xl border border-gray-700">
               <FaClipboardCheck className="text-5xl text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 text-lg">No assessments yet</p>
-              <p className="text-gray-500 text-sm mt-1">Click "New Assessment" to create one</p>
+              <p className="text-gray-500 text-sm mt-1">Click &quot;New Assessment&quot; to create one</p>
             </div>
           ) : (
             assessments.map(a => (
