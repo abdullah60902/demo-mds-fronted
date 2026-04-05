@@ -35,7 +35,7 @@ The **Compliance Module** provides a structured way to manage regulatory require
 
 ## 3. 🔌 API Reference
 
-### Base URL: `https://admin-panel-backend-alpha.vercel.app/compliance`
+### Base URL: `http://localhost:3000compliance`
 
 ### Endpoints
 *   **GET** `/` - Fetch all records.

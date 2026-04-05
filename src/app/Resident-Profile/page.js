@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../(component)/navbar/Navbar";
 import { SiSimpleanalytics } from "react-icons/si";
+import { ASSESSMENT_TYPES, TEMPLATE_FIELDS } from "../(component)/residentprofileassessment/assessmentTemplates";
 import { GrDocumentPerformance } from "react-icons/gr";
 import { IoDocumentAttach, IoDocuments } from "react-icons/io5";
 import { LuLayoutTemplate } from "react-icons/lu";
@@ -52,6 +53,7 @@ import ResidentProfileDailyLog from "../(component)/residentprofiledailylog/Resi
 import ResidentProfileMedicationEMAR from "../(component)/residentprofilemedicationemar/ResidentProfileMedicationEMAR";
 import ResidentProfileConsentForm from "../(component)/residentprofileconsentform/ResidentProfileConsentForm";
 import ResidentProfileHandOver from "../(component)/residentprofilehandover/ResidentProfileHandOver";
+import ResidentProfileAssessment from "../(component)/residentprofileassessment/ResidentProfileAssessment";
 
 const Page = () => {const { hasClients, user } = useAuth();
 const router = useRouter();
@@ -217,6 +219,7 @@ const tabs = [
   { id: "consent", label: "Consent", icon: <FaCheckCircle /> },
   { id: "handovers", label: "Handovers", icon: <FaExchangeAlt /> },
   { id: "documents", label: "Documents", icon: <FaFolderOpen /> },
+  { id: "assessment", label: "Assessment", icon: <FaClipboardList /> },
 ];
   // Image upload
   const [selectedImage, setSelectedImage] = useState(null);
@@ -246,6 +249,20 @@ const tabs = [
     const config = { headers: { Authorization: `Bearer ${token}` } };
     
     try {
+        // Re-fetch fresh client data from API to ensure we have the latest
+        const freshClientRes = await fetch(`https://admin-panel-backend-alpha.vercel.app/client/${id}`, config);
+        const freshClient = await freshClientRes.json();
+        // Also re-fetch care plans
+        let freshCarePlans = clientcareplane;
+        try {
+            const cpRes = await fetch(`https://admin-panel-backend-alpha.vercel.app/carePlanning/client/${id}`, config);
+            freshCarePlans = await cpRes.json();
+        } catch(e) { console.warn("Could not refresh care plans"); }
+
+        // Use fresh data throughout
+        const c = freshClient || client;
+        const carePlans = freshCarePlans || clientcareplane;
+
         const jsPDF = (await import("jspdf")).default;
         const autoTable = (await import("jspdf-autotable")).default;
         const doc = new jsPDF();
@@ -320,7 +337,7 @@ const tabs = [
 
         // Add Profile Image if exists
         try {
-            const profileUrl = client.profileImage;
+            const profileUrl = c.profileImage;
             if (profileUrl) {
                 const imgRes = await fetch(profileUrl);
                 const imgBlob = await imgRes.blob();
@@ -337,88 +354,102 @@ const tabs = [
         
         doc.setFontSize(14);
         doc.setTextColor(80);
-        doc.text(`Patient: ${client.fullName}`, 14, yPos);
+        doc.text(`Patient: ${c.fullName}`, 14, yPos);
         yPos += 8;
-        doc.text(`Room: ${client.roomNumber || "N/A"} | Date of Export: ${new Date().toLocaleDateString()}`, 14, yPos);
+        doc.text(`Room: ${c.roomNumber || "N/A"} | Date of Export: ${new Date().toLocaleDateString()}`, 14, yPos);
         yPos += 15;
+
+        let sectionNum = 0;
 
         // --- SECTION: ABOUT ME ---
         if (selectedExportModules.includes("about")) {
+            sectionNum++;
             doc.setFontSize(18);
             doc.setTextColor(0);
-            doc.text("1. Personal & Medical Profile", 14, yPos);
+            doc.text(`${sectionNum}. Personal & Medical Profile`, 14, yPos);
             yPos += 6;
             
             const aboutRows = [
-                ["Full Name", client.fullName || "N/A"],
-                ["Date of Birth", client.dob ? new Date(client.dob).toLocaleDateString() : (client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString() : "N/A")],
-                ["Gender", client.gender || "N/A"],
-                ["NI Number", client.niNo || "N/A"],
-                ["NHS Number", client.nhsNo || client.nhsNumber || "N/A"],
-                ["Ethnicity", client.ethnicity || "N/A"],
-                ["Religion", client.religion || "N/A"],
-                ["Mental Health Status", client.mentalHealthStatus || "N/A"],
-                ["Primary Diagnosis", client.primaryDiagnosis || "N/A"],
-                ["Diagnosis Date", client.diagnosisDate ? new Date(client.diagnosisDate).toLocaleDateString() : "N/A"],
-                ["Allergies", client.allergies || "None Reported"],
-                ["Daily Life Impact", client.dailyLifeImpact || "N/A"]
-            ];
+                ["Full Name", c.fullName],
+                ["Date of Birth", c.dob ? new Date(c.dob).toLocaleDateString() : (c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString() : null)],
+                ["Gender", c.gender],
+                ["NI Number", c.niNo],
+                ["NHS Number", c.nhsNo || c.nhsNumber],
+                ["Ethnicity", c.ethnicity],
+                ["Religion", c.religion],
+                ["Mental Health Status", c.mentalHealthStatus],
+                ["Primary Diagnosis", c.primaryDiagnosis],
+                ["Diagnosis Date", c.diagnosisDate ? new Date(c.diagnosisDate).toLocaleDateString() : null],
+                ["Allergies", c.allergies],
+                ["Daily Life Impact", c.dailyLifeImpact]
+            ].filter(row => row[1] && row[1] !== "N/A" && row[1] !== "");
 
-            autoTable(doc, {
-                startY: yPos,
-                body: aboutRows,
-                theme: 'grid',
-                headStyles: { fillColor: [74, 73, 176] },
-                styles: { fontSize: 9 }
-            });
-            yPos = doc.lastAutoTable.finalY + 12;
-            checkPageBreak();
+            if (aboutRows.length > 0) {
+                autoTable(doc, {
+                    startY: yPos,
+                    body: aboutRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [74, 73, 176] },
+                    styles: { fontSize: 9 }
+                });
+                yPos = doc.lastAutoTable.finalY + 12;
+                checkPageBreak();
+            }
 
             // NOK & Professionals
-            doc.setFontSize(14);
-            doc.text("Contacts & Professionals", 14, yPos);
-            yPos += 5;
-            autoTable(doc, {
-                startY: yPos,
-                head: [["Type", "Name", "Phone", "Email/Address"]],
-                body: [
-                    ["Next of Kin", client.nokName || "-", client.nokPhone || "-", `${client.nokEmail || ""}\n${client.nokAddress || ""}`],
-                    ["GP Details", client.gpDoctor || "-", client.gpPhone || "-", `${client.gpSurgery || ""}\n${client.gpAddress || ""}`],
-                    ["Specialist", client.consultantName || "-", client.specialistPhone || "-", `${client.hospitalName || ""}\n${client.hospitalAddress || ""}`]
-                ],
-                theme: 'striped',
-                styles: { fontSize: 8 }
-            });
-            yPos = doc.lastAutoTable.finalY + 12;
-            checkPageBreak();
+            const contactRows = [
+                c.nokName ? ["Next of Kin", c.nokName, c.nokPhone || "-", `${c.nokEmail || ""}\n${c.nokAddress || ""}`.trim()] : null,
+                c.gpDoctor ? ["GP Details", c.gpDoctor, c.gpPhone || "-", `${c.gpSurgery || ""}\n${c.gpAddress || ""}`.trim()] : null,
+                c.consultantName ? ["Specialist", c.consultantName, c.specialistPhone || "-", `${c.hospitalName || ""}\n${c.hospitalAddress || ""}`.trim()] : null
+            ].filter(Boolean);
+
+            if (contactRows.length > 0) {
+                doc.setFontSize(14);
+                doc.text("Contacts & Professionals", 14, yPos);
+                yPos += 5;
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [["Type", "Name", "Phone", "Email/Address"]],
+                    body: contactRows,
+                    theme: 'striped',
+                    styles: { fontSize: 8 }
+                });
+                yPos = doc.lastAutoTable.finalY + 12;
+                checkPageBreak();
+            }
 
             // Preferences
-            doc.setFontSize(14);
-            doc.text("Personal Preferences", 14, yPos);
-            yPos += 5;
-            autoTable(doc, {
-                startY: yPos,
-                body: [
-                    ["Important To Me", client.importantToMe || "N/A"],
-                    ["Please DO", client.pleaseDo || "N/A"],
-                    ["Please DON'T", client.pleaseDont || "N/A"]
-                ],
-                theme: 'grid',
-                styles: { fontSize: 9 },
-                columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
-            });
-            yPos = doc.lastAutoTable.finalY + 15;
-            checkPageBreak();
+            const prefRows = [
+                ["Important To Me", c.importantToMe],
+                ["Please DO", c.pleaseDo],
+                ["Please DON'T", c.pleaseDont]
+            ].filter(row => row[1] && row[1] !== "N/A" && row[1] !== "");
+
+            if (prefRows.length > 0) {
+                doc.setFontSize(14);
+                doc.text("Personal Preferences", 14, yPos);
+                yPos += 5;
+                autoTable(doc, {
+                    startY: yPos,
+                    body: prefRows,
+                    theme: 'grid',
+                    styles: { fontSize: 9 },
+                    columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
+                });
+                yPos = doc.lastAutoTable.finalY + 15;
+                checkPageBreak();
+            }
         }
 
         // --- SECTION: CARE PLAN ---
-        if (selectedExportModules.includes("care") && clientcareplane && clientcareplane.length > 0) {
+        if (selectedExportModules.includes("care") && carePlans && carePlans.length > 0) {
+            sectionNum++;
             checkPageBreak();
             doc.setFontSize(18);
-            doc.text("2. Care Planning", 14, yPos);
+            doc.text(`${sectionNum}. Care Planning`, 14, yPos);
             yPos += 6;
             let idx = 1;
-            for (let care of clientcareplane) {
+            for (let care of carePlans) {
                 const body = [
                     ["Plan Type", care.planType || "N/A"],
                     ["Start Date", care.creationDate ? new Date(care.creationDate).toLocaleDateString() : (care.carePlanData?.dateCreated ? new Date(care.carePlanData.dateCreated).toLocaleDateString() : "N/A")],
@@ -478,9 +509,10 @@ const tabs = [
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/pbs-plan/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("3. Behaviour Support Profile (PBS)", 14, yPos);
+                doc.text(`${sectionNum}. Behaviour Support Profile (PBS)`, 14, yPos);
                 yPos += 8;
                 
                 let idx = 1;
@@ -526,9 +558,10 @@ const tabs = [
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/risk-assessment/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("4. Risk Management Assessments", 14, yPos);
+                doc.text(`${sectionNum}. Risk Management Assessments`, 14, yPos);
                 yPos += 8;
                 
                 let idx = 1;
@@ -579,9 +612,10 @@ const tabs = [
             const myAdmin = allAdmin.filter(a => (a.client?._id || a.client) === id);
 
             if (meds.length > 0 || myAdmin.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("5. Medication (eMAR) Records", 14, yPos);
+                doc.text(`${sectionNum}. Medication (eMAR) Records`, 14, yPos);
                 yPos += 8;
 
                 if (meds.length > 0) {
@@ -634,9 +668,10 @@ const tabs = [
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/goals/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("6. Goals & Outcomes", 14, yPos);
+                doc.text(`${sectionNum}. Goals & Outcomes`, 14, yPos);
                 yPos += 8;
                 
                 let idx = 1;
@@ -673,9 +708,10 @@ const tabs = [
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/daily-log/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("7. Daily Progress Logs", 14, yPos);
+                doc.text(`${sectionNum}. Daily Progress Logs`, 14, yPos);
                 yPos += 8;
                 const moodMap = { happy: "🙂 Happy", neutral: "😐 Neutral", sad: "☹️ Sad", agitated: "😣 Agitated" };
                 autoTable(doc, {
@@ -709,9 +745,10 @@ const tabs = [
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/consent/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("8. Consent & Legal (DoLS)", 14, yPos);
+                doc.text(`${sectionNum}. Consent & Legal (DoLS)`, 14, yPos);
                 yPos += 8;
                 autoTable(doc, {
                     startY: yPos,
@@ -734,9 +771,10 @@ const tabs = [
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/handover/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
+                sectionNum++;
                 checkPageBreak();
                 doc.setFontSize(18);
-                doc.text("9. Shift Handovers", 14, yPos);
+                doc.text(`${sectionNum}. Shift Handovers`, 14, yPos);
                 yPos += 8;
                 autoTable(doc, {
                     startY: yPos,
@@ -763,32 +801,335 @@ const tabs = [
 
         // --- SECTION: DOCUMENTS ---
         if (selectedExportModules.includes("documents")) {
+            sectionNum++;
             checkPageBreak();
             doc.setFontSize(18);
-            doc.text("10. General Documents", 14, yPos);
+            doc.text(`${sectionNum}. Resident Documents`, 14, yPos);
             yPos += 8;
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/staff-documents/staff/${id}`, config);
+            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/resident-documents/client/${id}`, config);
             const docs = await res.json();
-            if (docs && docs.length > 0) {
-                for (let d of docs) {
-                    const categories = ["employmentContracts", "dbsCertificates", "idDocuments", "trainingCertificates", "appraisalsReviews", "disciplinaryRecords"];
-                    for (let cat of categories) {
-                        if (d[cat] && d[cat].length > 0) {
-                            doc.setFontSize(10);
-                            doc.text(`Category: ${cat.replace(/([A-Z])/g, " $1")}`, 14, yPos);
-                            yPos += 5;
-                            await addAttachmentsToPdf(d[cat]);
+            if (docs && Array.isArray(docs) && docs.length > 0) {
+                const groupedDocs = docs.reduce((acc, d) => {
+                    const cat = d.category || 'Uncategorized';
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push(d);
+                    return acc;
+                }, {});
+                
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [['Category', 'Notes', 'Expiry Date', 'Status', 'File']],
+                    body: docs.map(d => {
+                        const today = new Date().toISOString().slice(0, 10);
+                        const exp = d.expiryDate ? d.expiryDate.slice(0, 10) : null;
+                        let status = 'Valid';
+                        if (exp) {
+                            if (exp === today) status = 'Expiring Today';
+                            else if (exp < today) status = 'Expired';
                         }
+                        return [
+                            d.category || 'N/A',
+                            d.notes || 'N/A',
+                            exp || 'No Expiry',
+                            status,
+                            d.fileUrl ? 'Yes' : 'No'
+                        ];
+                    }),
+                    theme: 'striped',
+                    headStyles: { fillColor: [74, 73, 176] },
+                    styles: { fontSize: 8 }
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+
+                // Add file links
+                for (let d of docs) {
+                    if (d.fileUrl) {
+                        checkPageBreak(10);
+                        doc.setTextColor(0, 0, 255);
+                        doc.setFontSize(8);
+                        const ext = d.fileUrl.split('.').pop().toLowerCase().split('?')[0];
+                        doc.text(`[${d.category || 'Document'} - ${ext.toUpperCase()}]`, 14, yPos);
+                        doc.link(14, yPos - 4, 80, 8, { url: d.fileUrl });
+                        yPos += 8;
                     }
                 }
+                doc.setTextColor(0);
+                yPos += 5;
             } else {
                 doc.setFontSize(10);
-                doc.text("No additional documents found.", 14, yPos);
+                doc.text("No resident documents found.", 14, yPos);
                 yPos += 10;
             }
         }
 
-        doc.save(`${client.fullName.replace(/\s+/g, '_')}_Complete_Profile.pdf`);
+        // --- SECTION: ASSESSMENT ---
+        if (selectedExportModules.includes("assessment")) {
+            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/assessment/client/${id}`, config);
+            const assessments = await res.json();
+            if (assessments && Array.isArray(assessments) && assessments.length > 0) {
+                sectionNum++;
+                checkPageBreak();
+                doc.setFontSize(18);
+                doc.setTextColor(0);
+                doc.text(`${sectionNum}. Professional Assessments`, 14, yPos);
+                yPos += 10;
+
+                // Summary table of all assessments
+                doc.setFontSize(12);
+                doc.setTextColor(74, 73, 176);
+                doc.text('Assessment Records Overview', 14, yPos);
+                yPos += 5;
+
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [['#', 'Assessment Type', 'Date', 'Care Provider', 'Status']],
+                    body: assessments.map((a, i) => [
+                        i + 1,
+                        a.assessmentType || 'N/A',
+                        new Date(a.createdAt).toLocaleDateString(),
+                        a.staff ? (a.staff.fullName || a.staff.firstName || 'N/A') : 'N/A',
+                        a.status || 'Completed'
+                    ]),
+                    theme: 'grid',
+                    headStyles: { fillColor: [74, 73, 176] },
+                    styles: { fontSize: 8 },
+                    columnStyles: { 0: { cellWidth: 10, halign: 'center' } }
+                });
+                yPos = doc.lastAutoTable.finalY + 12;
+
+                // Detailed export of each assessment
+                let aIdx = 1;
+                for (let a of assessments) {
+                    checkPageBreak(30);
+                    doc.setFontSize(14);
+                    doc.setTextColor(74, 73, 176);
+                    doc.text(`Assessment ${aIdx}: ${a.assessmentType}`, 14, yPos);
+                    yPos += 5;
+                    doc.setFontSize(9);
+                    doc.setTextColor(120);
+                    doc.text(`Date: ${new Date(a.createdAt).toLocaleDateString()} | Provider: ${a.staff ? (a.staff.fullName || 'N/A') : 'N/A'} | Status: ${a.status || 'Completed'}`, 14, yPos);
+                    yPos += 8;
+                    aIdx++;
+
+                    const tmpl = TEMPLATE_FIELDS[a.assessmentType];
+                    const data = tmpl ? a[tmpl.key] || {} : {};
+
+                    if (tmpl && tmpl.sections) {
+                        for (const sec of tmpl.sections) {
+                            if (sec.fields && sec.fields.length > 0) {
+                                checkPageBreak(20);
+                                doc.setFontSize(11);
+                                doc.setTextColor(50);
+                                doc.text(sec.title, 14, yPos);
+                                yPos += 5;
+
+                                const fieldRows = sec.fields.map(f => {
+                                    let val = data[f.name];
+                                    if (val === undefined || val === null || val === '') val = 'N/A';
+                                    if (f.type === 'date' && val !== 'N/A') {
+                                        try { const d = new Date(val); if (!isNaN(d)) val = d.toLocaleDateString(); } catch(e) {}
+                                    }
+                                    return [f.label, String(val)];
+                                }).filter(r => r[1] !== 'N/A');
+
+                                if (fieldRows.length > 0) {
+                                    autoTable(doc, {
+                                        startY: yPos,
+                                        body: fieldRows,
+                                        theme: 'grid',
+                                        styles: { fontSize: 8 },
+                                        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50, fillColor: [235, 235, 252] } }
+                                    });
+                                    yPos = doc.lastAutoTable.finalY + 8;
+                                }
+                            }
+
+                            // Assessment area table (Client Assessment type)
+                            if (sec.table && sec.areas) {
+                                checkPageBreak(20);
+                                doc.setFontSize(11);
+                                doc.setTextColor(50);
+                                doc.text(sec.title, 14, yPos);
+                                yPos += 5;
+
+                                const areaRows = sec.areas.map(area => {
+                                    const label = sec.areaLabels[area] || area;
+                                    let notes = data[`${area}_notes`] || '-';
+                                    let level = data[`${area}_level`] || '-';
+                                    if (notes === '-' && data[area] && typeof data[area] === 'object') notes = data[area].notes || '-';
+                                    if (level === '-' && data[area] && typeof data[area] === 'object') level = data[area].levelOfNeed || '-';
+                                    return [label, notes, level];
+                                });
+
+                                autoTable(doc, {
+                                    startY: yPos,
+                                    head: [['Assessment Area', 'Notes & Observations', 'Level of Need']],
+                                    body: areaRows,
+                                    theme: 'grid',
+                                    headStyles: { fillColor: [74, 73, 176] },
+                                    styles: { fontSize: 8 },
+                                    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40, fillColor: [235, 235, 252] }, 2: { cellWidth: 30, halign: 'center' } }
+                                });
+                                yPos = doc.lastAutoTable.finalY + 8;
+                            }
+                        }
+                    } else {
+                        // No template - show raw data
+                        const rawKeys = Object.keys(a).filter(k => !['_id', '__v', 'client', 'staff', 'createdAt', 'updatedAt', 'assessmentType', 'status'].includes(k));
+                        for (const key of rawKeys) {
+                            const val = a[key];
+                            if (val && typeof val === 'object' && !Array.isArray(val)) {
+                                checkPageBreak(15);
+                                doc.setFontSize(11);
+                                doc.setTextColor(50);
+                                doc.text(key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), 14, yPos);
+                                yPos += 5;
+                                const entries = Object.entries(val).filter(([k, v]) => v !== null && v !== undefined && v !== '');
+                                if (entries.length > 0) {
+                                    autoTable(doc, {
+                                        startY: yPos,
+                                        body: entries.map(([k, v]) => [k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), typeof v === 'object' ? JSON.stringify(v) : String(v)]),
+                                        theme: 'grid',
+                                        styles: { fontSize: 8 },
+                                        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50, fillColor: [235, 235, 252] } }
+                                    });
+                                    yPos = doc.lastAutoTable.finalY + 8;
+                                }
+                            }
+                        }
+                    }
+
+                    // Special data: Goals
+                    if (data.goals && data.goals.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['#', 'Goal', 'Timeframe', 'Progress']],
+                            body: data.goals.map((g, i) => [i + 1, g.goal || '-', g.timeframe || '-', g.progress || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [74, 73, 176] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Risks
+                    if (data.risks && data.risks.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['Risk', 'Likelihood', 'Impact', 'Score', 'Controls']],
+                            body: data.risks.map(r => [r.risk || '-', r.likelihood || '-', r.impact || '-', r.score || (r.likelihood && r.impact ? r.likelihood * r.impact : '-'), r.controls || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [239, 68, 68] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Consents
+                    if (data.consents && data.consents.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['Consent Area', 'Response', 'Notes']],
+                            body: data.consents.map(c => [c.area || '-', c.answer || '-', c.notes || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [74, 73, 176] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Medications
+                    if (data.medications && data.medications.length > 0) {
+                        checkPageBreak(15);
+                        const isMAR = data.medications[0] && ('mon' in data.medications[0] || 'tue' in data.medications[0]);
+                        if (isMAR) {
+                            autoTable(doc, {
+                                startY: yPos,
+                                head: [['Medication', 'Dose', 'Time', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Notes']],
+                                body: data.medications.map(m => [m.medication || '-', m.dose || '-', m.time || '-', m.mon || '—', m.tue || '—', m.wed || '—', m.thu || '—', m.fri || '—', m.sat || '—', m.sun || '—', m.notes || '-']),
+                                theme: 'grid',
+                                headStyles: { fillColor: [74, 73, 176] },
+                                styles: { fontSize: 7 }
+                            });
+                        } else {
+                            autoTable(doc, {
+                                startY: yPos,
+                                head: [['#', 'Medication', 'Dose', 'Time', 'Staff']],
+                                body: data.medications.map((m, i) => [i + 1, m.medication || m.medicationName || '-', m.dose || '-', m.time || '-', m.staffInitials || '-']),
+                                theme: 'grid',
+                                headStyles: { fillColor: [74, 73, 176] },
+                                styles: { fontSize: 8 }
+                            });
+                        }
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Activities
+                    if (data.activitiesCompleted && data.activitiesCompleted.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['#', 'Activity']],
+                            body: data.activitiesCompleted.map((act, i) => [i + 1, act || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [74, 73, 176] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Injuries
+                    if (data.injuries && data.injuries.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['Person', 'Injury', 'Treatment']],
+                            body: data.injuries.map(inj => [inj.person || '-', inj.injury || '-', inj.treatment || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [239, 68, 68] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Visits
+                    if (data.visits && data.visits.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['Date', 'Time In', 'Time Out', 'Tasks', 'Staff']],
+                            body: data.visits.map(v => [v.date || '-', v.timeIn || '-', v.timeOut || '-', v.tasksCompleted || '-', v.staffInitials || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [74, 73, 176] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    // Special data: Checklist areas
+                    if (data.areas && data.areas.length > 0) {
+                        checkPageBreak(15);
+                        autoTable(doc, {
+                            startY: yPos,
+                            head: [['Area', 'Safe', 'Unsafe', 'Notes']],
+                            body: data.areas.map(area => [area.area || '-', area.safe || '—', area.unsafe || '—', area.notes || '-']),
+                            theme: 'grid',
+                            headStyles: { fillColor: [74, 73, 176] },
+                            styles: { fontSize: 8 }
+                        });
+                        yPos = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    yPos += 5;
+                    checkPageBreak(30);
+                }
+            }
+        }
+
+        doc.save(`${c.fullName.replace(/\s+/g, '_')}_Complete_Profile.pdf`);
         setShowExportModal(false);
     } catch (error) {
         console.error("Export Error:", error);
@@ -1103,6 +1444,12 @@ text-xs sm:text-sm md:text-base lg:text-lg"
 
 {activeTab === "documents" && 
 <ResidentProfileDocuments clientId={id} />
+}
+
+{/* Assessment */}
+
+{activeTab === "assessment" && 
+<ResidentProfileAssessment clientId={id} />
 }
 
           </div>

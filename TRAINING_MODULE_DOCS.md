@@ -37,7 +37,7 @@ The **Training Module** allows for the precise tracking of staff qualifications,
 
 ## 3. 🔌 API Reference
 
-### Base URL: `https://admin-panel-backend-alpha.vercel.app/training`
+### Base URL: `http://localhost:3000training`
 
 ### Endpoints
 *   **PUT** `/refresh-status` - Triggers a bulk update of statuses based on current date (Useful for daily jobs).

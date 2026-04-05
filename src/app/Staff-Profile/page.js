@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import Navbar from "../(component)/navbar/Navbar";
 import Image from "next/image";
 import { SiSimpleanalytics } from "react-icons/si";
+import { TEMPLATE_FIELDS } from "../(component)/residentprofileassessment/assessmentTemplates";
 import { GrDocumentPerformance } from "react-icons/gr";
 import { IoDocumentAttach, IoDocuments } from "react-icons/io5";
 import { LuLayoutTemplate } from "react-icons/lu";
@@ -40,6 +41,7 @@ import StafProfilePersonalEmp from "@/app/(component)/stafprofilepersonalemp/Sta
 import StafProfilePayTimeShet from "@/app/(component)/stafprofilepaytimeshet/StafProfilePayTimeShet";
 import StafProfileDocuments from "@/app/(component)/stafprofiledocuments/StafProfileDocuments";
 import Stafprofilesperformance from "@/app/(component)/stafprofilesperformance/StafProfilesPerformance ";
+import StaffProfileAssessment from "@/app/(component)/staffprofileassessment/StaffProfileAssessment";
 
 import { useSearchParams } from "next/navigation";
 
@@ -210,6 +212,7 @@ useEffect(() => {
     { id: "pay", label: "Pay & Timesheets", icon: <GiMoneyStack /> },
     { id: "performance", label: "Performance & Leave", icon: <IoDocuments /> },
     { id: "documents", label: "Documents", icon: <IoDocuments /> },
+    { id: "assessment", label: "Assessment", icon: <BsClipboardCheck /> },
   ];
 
   // Image upload
@@ -240,6 +243,11 @@ useEffect(() => {
     const config = { headers: { Authorization: `Bearer ${token}` } };
     
     try {
+        // Re-fetch fresh staff data from API to ensure we have the latest
+        const freshStaffRes = await fetch(`https://admin-panel-backend-alpha.vercel.app/staff/${id}`, config);
+        const freshStaff = await freshStaffRes.json();
+        const s = freshStaff || staff;
+
         const jsPDF = (await import("jspdf")).default;
         const autoTable = (await import("jspdf-autotable")).default;
         const doc = new jsPDF();
@@ -314,7 +322,7 @@ useEffect(() => {
 
         // Add Profile Image if exists
         try {
-            const profileUrl = staff.profileImage;
+            const profileUrl = s.profileImage;
             if (profileUrl) {
                 const imgRes = await fetch(profileUrl);
                 const imgBlob = await imgRes.blob();
@@ -331,88 +339,102 @@ useEffect(() => {
         
         doc.setFontSize(14);
         doc.setTextColor(80);
-        doc.text(`Employee: ${staff.fullName}`, 14, yPos);
+        doc.text(`Employee: ${s.fullName}`, 14, yPos);
         yPos += 8;
-        doc.text(`Position: ${staff.position || "N/A"} | Date of Export: ${new Date().toLocaleDateString()}`, 14, yPos);
+        doc.text(`Position: ${s.position || "N/A"} | Date of Export: ${new Date().toLocaleDateString()}`, 14, yPos);
         yPos += 15;
+
+        let sectionNum = 0;
 
         // --- SECTION: PERSONAL & EMPLOYMENT ---
         if (selectedExportModules.includes("personal")) {
+            sectionNum++;
             doc.setFontSize(18);
             doc.setTextColor(0);
-            doc.text("1. Personal & Employment Details", 14, yPos);
+            doc.text(`${sectionNum}. Personal & Employment Details`, 14, yPos);
             yPos += 6;
             
             const pRows = [
-                ["Full Name", staff.fullName || "N/A"],
-                ["Email", staff.email || "N/A"],
-                ["Phone", staff.phoneNumber || staff.contactNumber || "N/A"],
-                ["Date of Birth", staff.dob || "N/A"],
-                ["NI Number", staff.niNumber || "N/A"],
-                ["Home Address", staff.address || "N/A"],
-                ["Position", staff.position || "N/A"],
-                ["Department", staff.department || "N/A"],
-                ["Service Setting", staff.careSetting || "N/A"],
-                ["Start Date", staff.startDate ? new Date(staff.startDate).toLocaleDateString() : "N/A"],
-                ["Employment Type", staff.employmentType || "N/A"],
-                ["Contract Details", staff.contractDetails || "N/A"],
-                ["Status", staff.status || staff.terminationStatus || "Active"]
-            ];
+                ["Full Name", s.fullName],
+                ["Email", s.email],
+                ["Phone", s.phoneNumber || s.contactNumber],
+                ["Date of Birth", s.dob],
+                ["NI Number", s.niNumber],
+                ["Home Address", s.address],
+                ["Position", s.position],
+                ["Department", s.department],
+                ["Service Setting", s.careSetting],
+                ["Start Date", s.startDate ? new Date(s.startDate).toLocaleDateString() : null],
+                ["Employment Type", s.employmentType],
+                ["Contract Details", s.contractDetails],
+                ["Status", s.status || s.terminationStatus || "Active"]
+            ].filter(row => row[1] && row[1] !== "N/A" && row[1] !== "");
 
-            autoTable(doc, {
-                startY: yPos,
-                body: pRows,
-                theme: 'grid',
-                headStyles: { fillColor: [74, 73, 176] },
-                styles: { fontSize: 9 }
-            });
-            yPos = doc.lastAutoTable.finalY + 12;
-            checkPageBreak();
+            if (pRows.length > 0) {
+                autoTable(doc, {
+                    startY: yPos,
+                    body: pRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [74, 73, 176] },
+                    styles: { fontSize: 9 }
+                });
+                yPos = doc.lastAutoTable.finalY + 12;
+                checkPageBreak();
+            }
 
             // Next of Kin
-            doc.setFontSize(14);
-            doc.text("Next of Kin", 14, yPos);
-            yPos += 5;
-            autoTable(doc, {
-                startY: yPos,
-                body: [
-                    ["Name", staff.nextOfKinName || "N/A"],
-                    ["Relationship", staff.nextOfKinRelationship || "N/A"],
-                    ["Contact", `${staff.nextOfKinEmail || ""}\n${staff.nextOfKinPhone || ""}`],
-                    ["Address", staff.nextOfKinAddress || "N/A"]
-                ],
-                theme: 'striped',
-                styles: { fontSize: 8 }
-            });
-            yPos = doc.lastAutoTable.finalY + 12;
-            checkPageBreak();
+            const nokRows = [
+                ["Name", s.nextOfKinName],
+                ["Relationship", s.nextOfKinRelationship],
+                ["Contact", (s.nextOfKinEmail || s.nextOfKinPhone) ? `${s.nextOfKinEmail || ""}\n${s.nextOfKinPhone || ""}`.trim() : null],
+                ["Address", s.nextOfKinAddress]
+            ].filter(row => row[1] && row[1] !== "N/A" && row[1] !== "");
+
+            if (nokRows.length > 0) {
+                doc.setFontSize(14);
+                doc.text("Next of Kin", 14, yPos);
+                yPos += 5;
+                autoTable(doc, {
+                    startY: yPos,
+                    body: nokRows,
+                    theme: 'striped',
+                    styles: { fontSize: 8 }
+                });
+                yPos = doc.lastAutoTable.finalY + 12;
+                checkPageBreak();
+            }
 
             // Compliance & Documents
-            doc.setFontSize(14);
-            doc.text("Compliance & Eligibility", 14, yPos);
-            yPos += 5;
-            autoTable(doc, {
-                startY: yPos,
-                body: [
-                    ["DBS Status", staff.dbsStatus || "N/A"],
-                    ["Right to Work", staff.rightToWorkStatus || "N/A"],
-                    ["Professional Reg", staff.professionalRegistration || "N/A"],
-                    ["Passport No", staff.passportNumber || "N/A"],
-                    ["Visa Required", staff.visaRequired || "N/A"],
-                    ["Visa Expiry", staff.visaExpiry || "N/A"]
-                ],
-                theme: 'grid',
-                styles: { fontSize: 8 }
-            });
-            yPos = doc.lastAutoTable.finalY + 15;
-            checkPageBreak();
+            const compRows = [
+                ["DBS Status", s.dbsStatus],
+                ["Right to Work", s.rightToWorkStatus],
+                ["Professional Reg", s.professionalRegistration],
+                ["Passport No", s.passportNumber],
+                ["Visa Required", s.visaRequired],
+                ["Visa Expiry", s.visaExpiry]
+            ].filter(row => row[1] && row[1] !== "N/A" && row[1] !== "");
+
+            if (compRows.length > 0) {
+                doc.setFontSize(14);
+                doc.text("Compliance & Eligibility", 14, yPos);
+                yPos += 5;
+                autoTable(doc, {
+                    startY: yPos,
+                    body: compRows,
+                    theme: 'grid',
+                    styles: { fontSize: 8 }
+                });
+                yPos = doc.lastAutoTable.finalY + 15;
+                checkPageBreak();
+            }
         }
 
         // --- SECTION: TRAINING ---
         if (selectedExportModules.includes("training")) {
+            sectionNum++;
             checkPageBreak();
             doc.setFontSize(18);
-            doc.text("2. Training & Certifications", 14, yPos);
+            doc.text(`${sectionNum}. Training & Certifications`, 14, yPos);
             yPos += 8;
 
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/training/staff/${id}`, config);
@@ -462,9 +484,10 @@ useEffect(() => {
 
         // --- SECTION: PERFORMANCE ---
         if (selectedExportModules.includes("performance")) {
+            sectionNum++;
             checkPageBreak();
             doc.setFontSize(18);
-            doc.text("3. Performance & Appraisals", 14, yPos);
+            doc.text(`${sectionNum}. Performance & Appraisals`, 14, yPos);
             yPos += 8;
 
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/performance/staff/${id}`, config);
@@ -522,30 +545,40 @@ useEffect(() => {
 
         // --- SECTION: PAY ---
         if (selectedExportModules.includes("pay")) {
+            sectionNum++;
             checkPageBreak();
             doc.setFontSize(18);
-            doc.text("4. Pay & Benefits Summary", 14, yPos);
+            doc.text(`${sectionNum}. Pay & Benefits Summary`, 14, yPos);
             yPos += 6;
-            autoTable(doc, {
-                startY: yPos,
-                body: [
-                    ["Bank Name", staff.bankName || "N/A"],
-                    ["Sort Code", staff.sortCode || "N/A"],
-                    ["Account Number", staff.accountNumber || "N/A"],
-                    ["NI Number", staff.niNumber || "N/A"],
-                    ["Tax Code", staff.taxCode || "N/A"]
-                ],
-                theme: 'grid',
-                styles: { fontSize: 9 }
-            });
-            yPos = doc.lastAutoTable.finalY + 15;
+            const payRows = [
+                ["Bank Name", s.bankName],
+                ["Sort Code", s.sortCode],
+                ["Account Number", s.accountNumber],
+                ["NI Number", s.niNumber],
+                ["Tax Code", s.taxCode]
+            ].filter(row => row[1] && row[1] !== "N/A" && row[1] !== "");
+
+            if (payRows.length > 0) {
+                autoTable(doc, {
+                    startY: yPos,
+                    body: payRows,
+                    theme: 'grid',
+                    styles: { fontSize: 9 }
+                });
+                yPos = doc.lastAutoTable.finalY + 15;
+            } else {
+                doc.setFontSize(10);
+                doc.text("No pay details recorded.", 14, yPos);
+                yPos += 10;
+            }
         }
 
         // --- SECTION: DOCUMENTS ---
         if (selectedExportModules.includes("documents")) {
+            sectionNum++;
             checkPageBreak();
             doc.setFontSize(18);
-            doc.text("5. General Documents", 14, yPos);
+            doc.text(`${sectionNum}. Staff Documents`, 14, yPos);
             yPos += 8;
             const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/staff-documents/staff/${id}`, config);
             const docs = await res.json();
@@ -568,7 +601,191 @@ useEffect(() => {
             }
         }
 
-        doc.save(`${staff.fullName.replace(/\s+/g, '_')}_Staff_Profile.pdf`);
+        // --- SECTION: ASSESSMENT ---
+        if (selectedExportModules.includes("assessment")) {
+            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/assessment/staff/${id}`, config);
+            const assessments = await res.json();
+            if (assessments && Array.isArray(assessments) && assessments.length > 0) {
+                sectionNum++;
+                checkPageBreak();
+                doc.setFontSize(18);
+                doc.setTextColor(0);
+                doc.text(`${sectionNum}. Linked Client Assessments`, 14, yPos);
+                yPos += 10;
+
+                // Group by client
+                const clientMap = {};
+                assessments.forEach(a => {
+                    const cId = a.client?._id || a.client;
+                    const cName = a.client?.fullName || 'Unknown Client';
+                    if (!clientMap[cId]) clientMap[cId] = { name: cName, records: [] };
+                    clientMap[cId].records.push(a);
+                });
+
+                // Summary table
+                doc.setFontSize(12);
+                doc.setTextColor(74, 73, 176);
+                doc.text('Assessments Overview', 14, yPos);
+                yPos += 5;
+
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [['#', 'Client', 'Assessment Type', 'Date', 'Status']],
+                    body: assessments.map((a, i) => [
+                        i + 1,
+                        a.client?.fullName || 'Unknown',
+                        a.assessmentType || 'N/A',
+                        new Date(a.createdAt).toLocaleDateString(),
+                        a.status || 'Completed'
+                    ]),
+                    theme: 'grid',
+                    headStyles: { fillColor: [74, 73, 176] },
+                    styles: { fontSize: 8 },
+                    columnStyles: { 0: { cellWidth: 10, halign: 'center' } }
+                });
+                yPos = doc.lastAutoTable.finalY + 12;
+
+                // Detailed per-client breakdown
+                for (const [cId, cData] of Object.entries(clientMap)) {
+                    checkPageBreak(25);
+                    doc.setFontSize(13);
+                    doc.setTextColor(74, 73, 176);
+                    doc.text(`Client: ${cData.name}`, 14, yPos);
+                    yPos += 8;
+
+                    let aIdx = 1;
+                    for (let a of cData.records) {
+                        checkPageBreak(20);
+                        doc.setFontSize(11);
+                        doc.setTextColor(50);
+                        doc.text(`${aIdx}. ${a.assessmentType} — ${new Date(a.createdAt).toLocaleDateString()} (${a.status || 'Completed'})`, 14, yPos);
+                        yPos += 6;
+                        aIdx++;
+
+                        const tmpl = TEMPLATE_FIELDS[a.assessmentType];
+                        const data = tmpl ? a[tmpl.key] || {} : {};
+
+                        if (tmpl && tmpl.sections) {
+                            for (const sec of tmpl.sections) {
+                                if (sec.fields && sec.fields.length > 0) {
+                                    const fieldRows = sec.fields.map(f => {
+                                        let val = data[f.name];
+                                        if (val === undefined || val === null || val === '') val = 'N/A';
+                                        if (f.type === 'date' && val !== 'N/A') {
+                                            try { const d = new Date(val); if (!isNaN(d)) val = d.toLocaleDateString(); } catch(e) {}
+                                        }
+                                        return [f.label, String(val)];
+                                    }).filter(r => r[1] !== 'N/A');
+
+                                    if (fieldRows.length > 0) {
+                                        checkPageBreak(15);
+                                        autoTable(doc, {
+                                            startY: yPos,
+                                            body: fieldRows,
+                                            theme: 'grid',
+                                            styles: { fontSize: 8 },
+                                            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50, fillColor: [235, 235, 252] } }
+                                        });
+                                        yPos = doc.lastAutoTable.finalY + 6;
+                                    }
+                                }
+
+                                // Assessment area table
+                                if (sec.table && sec.areas) {
+                                    checkPageBreak(15);
+                                    const areaRows = sec.areas.map(area => {
+                                        const label = sec.areaLabels[area] || area;
+                                        let notes = data[`${area}_notes`] || '-';
+                                        let level = data[`${area}_level`] || '-';
+                                        if (notes === '-' && data[area] && typeof data[area] === 'object') notes = data[area].notes || '-';
+                                        if (level === '-' && data[area] && typeof data[area] === 'object') level = data[area].levelOfNeed || '-';
+                                        return [label, notes, level];
+                                    });
+                                    autoTable(doc, {
+                                        startY: yPos,
+                                        head: [['Assessment Area', 'Notes', 'Level of Need']],
+                                        body: areaRows,
+                                        theme: 'grid',
+                                        headStyles: { fillColor: [74, 73, 176] },
+                                        styles: { fontSize: 8 },
+                                        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40, fillColor: [235, 235, 252] }, 2: { cellWidth: 28, halign: 'center' } }
+                                    });
+                                    yPos = doc.lastAutoTable.finalY + 6;
+                                }
+                            }
+                        } else {
+                            // No template - show raw data
+                            const rawKeys = Object.keys(a).filter(k => !['_id', '__v', 'client', 'staff', 'createdAt', 'updatedAt', 'assessmentType', 'status'].includes(k));
+                            for (const key of rawKeys) {
+                                const val = a[key];
+                                if (val && typeof val === 'object' && !Array.isArray(val)) {
+                                    checkPageBreak(15);
+                                    const entries = Object.entries(val).filter(([k, v]) => v !== null && v !== undefined && v !== '');
+                                    if (entries.length > 0) {
+                                        autoTable(doc, {
+                                            startY: yPos,
+                                            body: entries.map(([k, v]) => [k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), typeof v === 'object' ? JSON.stringify(v) : String(v)]),
+                                            theme: 'grid',
+                                            styles: { fontSize: 8 },
+                                            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50, fillColor: [235, 235, 252] } }
+                                        });
+                                        yPos = doc.lastAutoTable.finalY + 6;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Special data: Goals, Risks, Consents, Medications, etc.
+                        if (data.goals && data.goals.length > 0) {
+                            checkPageBreak(10);
+                            autoTable(doc, {
+                                startY: yPos,
+                                head: [['#', 'Goal', 'Timeframe', 'Progress']],
+                                body: data.goals.map((g, i) => [i + 1, g.goal || '-', g.timeframe || '-', g.progress || '-']),
+                                theme: 'grid', headStyles: { fillColor: [74, 73, 176] }, styles: { fontSize: 8 }
+                            });
+                            yPos = doc.lastAutoTable.finalY + 6;
+                        }
+                        if (data.risks && data.risks.length > 0) {
+                            checkPageBreak(10);
+                            autoTable(doc, {
+                                startY: yPos,
+                                head: [['Risk', 'Likelihood', 'Impact', 'Score', 'Controls']],
+                                body: data.risks.map(r => [r.risk || '-', r.likelihood || '-', r.impact || '-', r.score || '-', r.controls || '-']),
+                                theme: 'grid', headStyles: { fillColor: [239, 68, 68] }, styles: { fontSize: 8 }
+                            });
+                            yPos = doc.lastAutoTable.finalY + 6;
+                        }
+                        if (data.consents && data.consents.length > 0) {
+                            checkPageBreak(10);
+                            autoTable(doc, {
+                                startY: yPos,
+                                head: [['Consent Area', 'Response', 'Notes']],
+                                body: data.consents.map(c => [c.area || '-', c.answer || '-', c.notes || '-']),
+                                theme: 'grid', headStyles: { fillColor: [74, 73, 176] }, styles: { fontSize: 8 }
+                            });
+                            yPos = doc.lastAutoTable.finalY + 6;
+                        }
+                        if (data.medications && data.medications.length > 0) {
+                            checkPageBreak(10);
+                            autoTable(doc, {
+                                startY: yPos,
+                                head: [['#', 'Medication', 'Dose', 'Time', 'Staff']],
+                                body: data.medications.map((m, i) => [i + 1, m.medication || '-', m.dose || '-', m.time || '-', m.staffInitials || '-']),
+                                theme: 'grid', headStyles: { fillColor: [74, 73, 176] }, styles: { fontSize: 8 }
+                            });
+                            yPos = doc.lastAutoTable.finalY + 6;
+                        }
+
+                        yPos += 4;
+                        checkPageBreak(20);
+                    }
+                    yPos += 5;
+                }
+            }
+        }
+
+        doc.save(`${s.fullName.replace(/\s+/g, '_')}_Staff_Profile.pdf`);
         setShowExportModal(false);
     } catch (error) {
         console.error("Export Error:", error);
@@ -859,6 +1076,10 @@ text-xs sm:text-sm md:text-base lg:text-lg"
 {/* documents//////////////// */}
             {activeTab === "documents" && (
               <StafProfileDocuments staffId={id}/>
+            )}
+{/* Assessment */}
+            {activeTab === "assessment" && (
+              <StaffProfileAssessment staffId={id} />
             )}
           </div>
         </main>
