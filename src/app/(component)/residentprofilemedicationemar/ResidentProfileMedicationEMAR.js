@@ -12,16 +12,12 @@ import {
 } from "react-icons/fa";
 import { MdOutlineMedication } from "react-icons/md";
 import axios from "axios";
-
 const ResidentProfileMedicationEMAR = ({ clientId }) => {
   const [activeTab, setActiveTab] = useState("active"); // 'active' | 'history'
-  
   const [medications, setMedications] = useState([]); // From /medications
   const [adminHistory, setAdminHistory] = useState([]); // From /medication-administration
-  
   const [showForm, setShowForm] = useState(false); // For New Medication Order
   const [showAdminForm, setShowAdminForm] = useState(false); // For Recording Dose
-  
   const [editingId, setEditingId] = useState(null);
   const [editingAdminId, setEditingAdminId] = useState(null); // For history record edit
   const [selectedMedForAdmin, setSelectedMedForAdmin] = useState(null); // Which URL to record dose for

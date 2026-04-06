@@ -37,7 +37,7 @@ const StaffProfileDocuments = ({ staffId }) => {
       .then((res) => res.json())
 .then((data) => {
   console.log("DOCUMENT RESPONSE =>", data);
-  setDocuments(data);
+  setDocuments(Array.isArray(data) ? data : []);
 });
   }, [staffId]);
 
@@ -76,7 +76,7 @@ const StaffProfileDocuments = ({ staffId }) => {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     })
       .then((res) => res.json())
-      .then((data) => setDocuments(data));
+      .then((data) => setDocuments(Array.isArray(data) ? data : []));
   };
 
   // ============================

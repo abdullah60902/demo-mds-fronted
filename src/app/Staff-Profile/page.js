@@ -795,6 +795,8 @@ useEffect(() => {
     }
   };
 
+  if (!user) return null;
+
   return (
     <div className="bg-[#111827] min-h-screen">
       <Navbar />

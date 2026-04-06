@@ -86,7 +86,13 @@ const fetchLowStock = async () => {
     setHasLowStock(res.data.hasLowStock || false);
     setTotalLowStock(res.data.totalLowStock || 0);
   } catch (err) {
-    console.error("Error fetching low stock:", err);
+    if (err.response && err.response.status === 404) {
+      console.warn("Low stock endpoint not found (404). Falling back to 0.");
+      setHasLowStock(false);
+      setTotalLowStock(0);
+    } else {
+      console.error("Error fetching low stock:", err);
+    }
   }
 };
 

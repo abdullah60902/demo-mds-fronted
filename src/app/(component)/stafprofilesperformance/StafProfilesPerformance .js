@@ -23,10 +23,10 @@ import { useAuth } from "@/app/context/AuthContext";
 import axios from "axios";
 import { toast } from "react-toastify";
 const StafProfilesPerformance  = ({performanceId, id}) => {
-  console.log("performanceId props:", performanceId[0]._id);
+  console.log("performanceId props:", Array.isArray(performanceId) && performanceId.length > 0 ? performanceId[0]._id : "N/A");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-const [performanceData, setPerformanceData] = useState(performanceId || []);
-  const [filteredPerformance, setFilteredPerformance] = useState([]);
+const [performanceData, setPerformanceData] = useState(Array.isArray(performanceId) ? performanceId : []);
+  const [filteredPerformance, setFilteredPerformance] = useState(Array.isArray(performanceId) ? performanceId : []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState("All Records");
     const { hasLowStock, setHasLowStock } = useAuth();
@@ -70,7 +70,7 @@ const [performanceData, setPerformanceData] = useState(performanceId || []);
     headers: { Authorization: `Bearer ${token}` }
   })
     .then(res => res.json())
-    .then(data => setPerformanceData(data)) // array of objects
+    .then(data => setPerformanceData(Array.isArray(data) ? data : [])) 
     .catch(err => console.log(err));
 }, [id]);
 
@@ -128,8 +128,8 @@ const [performanceData, setPerformanceData] = useState(performanceId || []);
         });
         return axios.get("https://admin-panel-backend-alpha.vercel.app/performance", config)
           .then(res => {
-            setPerformanceData(performanceId);
-            setFilteredPerformance(performanceId);
+            setPerformanceData(Array.isArray(performanceId) ? performanceId : []);
+            setFilteredPerformance(Array.isArray(performanceId) ? performanceId : []);
           });
   
       })
@@ -140,22 +140,25 @@ const [performanceData, setPerformanceData] = useState(performanceId || []);
       .finally(() => setLoading(false));
   };
   
-useEffect(() => {
-  fetchPerformance();
-}, [fetchPerformance]);
-
-
   const fetchPerformance = useCallback(async () => {
   const token = localStorage.getItem("token");
   const config = { headers: { Authorization: `Bearer ${token}` } };
   try {
     const res = await axios.get(`https://admin-panel-backend-alpha.vercel.app/performance/staff/${id}`, config);
-    setPerformanceData(res.data); // <-- use fresh data from server
-    setFilteredPerformance(res.data);
+    const data = Array.isArray(res.data) ? res.data : [];
+    setPerformanceData(data); // <-- use fresh data from server
+    setFilteredPerformance(data);
   } catch (err) {
     setError("Could not fetch data");
   }
 }, [id]);
+
+useEffect(() => {
+  fetchPerformance();
+}, [fetchPerformance]);
+
+
+
   const handleDelete = async (id) => {
     if (!window.confirm("Confirm delete?")) return;
     const token = localStorage.getItem("token");
