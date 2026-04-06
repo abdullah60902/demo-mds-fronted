@@ -208,7 +208,7 @@ const Page = () => {
 
     axios
       .post(
-        `https://admin-panel-backend-alpha.vercel.app/carePlanning`,
+        `http://localhost:3000/carePlanning`,
         formData,
         config
       )
@@ -244,7 +244,7 @@ const Page = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     axios
-      .get("https://admin-panel-backend-alpha.vercel.app/client", {
+      .get("http://localhost:3000/client", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -263,7 +263,7 @@ const Page = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     axios
-      .get("https://admin-panel-backend-alpha.vercel.app/client", {
+      .get("http://localhost:3000/client", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -291,7 +291,7 @@ const Page = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          "https://admin-panel-backend-alpha.vercel.app/training",
+          "http://localhost:3000/training",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -350,7 +350,13 @@ const Page = () => {
           });
         }
       } catch (error) {
-        console.error("❌ Error fetching training analytics:", error);
+        if (error.response && error.response.status === 404) {
+             console.warn("Training stats endpoint not found (404). Falling back to empty stats.");
+             setTrainingStats({ upToDate: 0, expiringSoon: 0, expired: 0 });
+             setPercentage(0);
+        } else {
+             console.error("❌ Error fetching training analytics:", error);
+        }
       }
     };
 
@@ -370,7 +376,7 @@ const Page = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          "https://admin-panel-backend-alpha.vercel.app/incident/all",
+          "http://localhost:3000/incident/all",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -440,7 +446,7 @@ const Page = () => {
 
     axios
       .post(
-        `https://admin-panel-backend-alpha.vercel.app/incident/`,
+        `http://localhost:3000/incident/`,
         data,
         config
       )
@@ -523,7 +529,7 @@ const Page = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          "https://admin-panel-backend-alpha.vercel.app/hr",
+          "http://localhost:3000/hr",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -565,7 +571,7 @@ const Page = () => {
     };
 
     axios
-      .post(`https://admin-panel-backend-alpha.vercel.app/hr`, payload, config)
+      .post(`http://localhost:3000/hr`, payload, config)
 
       .then((res) => {
         setLoading(false); // Reset loading state
@@ -601,7 +607,7 @@ const Page = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          "https://admin-panel-backend-alpha.vercel.app/client",
+          "http://localhost:3000/client",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -660,7 +666,7 @@ const Page = () => {
 
     axios
       .post(
-        `https://admin-panel-backend-alpha.vercel.app/client`,
+        `http://localhost:3000/client`,
         payload,
         config
       )
@@ -677,7 +683,7 @@ const Page = () => {
         toast.success("Add successfuly");
 
         return axios.get(
-          "https://admin-panel-backend-alpha.vercel.app/client",
+          "http://localhost:3000/client",
           config
         );
       })
@@ -787,7 +793,7 @@ const Page = () => {
     formData.append("attachments", file); // same name used in backend
   });
   axios
-    .post(`https://admin-panel-backend-alpha.vercel.app/training`, formData, config)
+    .post(`http://localhost:3000/training`, formData, config)
     .then((res) => {
       setFormData4({
         staffName: "",
@@ -816,7 +822,7 @@ const Page = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     axios
-      .get("https://admin-panel-backend-alpha.vercel.app/hr", {
+      .get("http://localhost:3000/hr", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
