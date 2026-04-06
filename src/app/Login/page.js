@@ -24,7 +24,7 @@ const [forgotEmail, setForgotEmail] = useState('');
     setIsLoading(true);
 
     try {
-      const res = await axios.post('http://localhost:3000/user/login', {
+      const res = await axios.post('https://admin-panel-backend-alpha.vercel.app/user/login', {
         email,
         password,
       });
@@ -60,7 +60,7 @@ const [forgotEmail, setForgotEmail] = useState('');
 
   setIsLoading(true); // ⏳ Start loader
   try {
-    const res = await axios.post("http://localhost:3000/user/forgot-password", { email: forgotEmail });
+    const res = await axios.post("https://admin-panel-backend-alpha.vercel.app/user/forgot-password", { email: forgotEmail });
     toast.success(res.data.msg || "Check your email for new password");
     setShowForgot(false);
     setForgotEmail('');
