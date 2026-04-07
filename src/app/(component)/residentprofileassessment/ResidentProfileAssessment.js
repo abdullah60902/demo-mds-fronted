@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { FaPlus, FaTimes, FaEye, FaTrash, FaClipboardCheck, FaChevronDown, FaChevronUp, FaSave, FaFilePdf } from "react-icons/fa";
 import { ASSESSMENT_TYPES, TEMPLATE_FIELDS } from "./assessmentTemplates";
 
-const API = "http://localhost:3000";
+const API = "https://admin-panel-backend-alpha.vercel.app";
 
 const ResidentProfileAssessment = ({ clientId }) => {
   const [assessments, setAssessments] = useState([]);

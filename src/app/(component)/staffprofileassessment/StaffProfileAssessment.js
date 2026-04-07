@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { FaClipboardCheck, FaEye, FaUser, FaSearch } from "react-icons/fa";
 import Link from "next/link";
 
-const API = "http://localhost:3000";
+const API = "https://admin-panel-backend-alpha.vercel.app";
 
 const StaffProfileAssessment = ({ staffId }) => {
   const [assessments, setAssessments] = useState([]);
