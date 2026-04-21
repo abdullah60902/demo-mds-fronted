@@ -66,6 +66,8 @@ const StaffData = [
   },
 ];
 
+const PROTECTED_EMAIL = "info@mdssupport.coder.uk";
+
 const Page = () => {
   const { user, logout } = useAuth();
     console.log("safi butt");
@@ -320,6 +322,13 @@ const handleChange6 = (e) => {
   }, [searchQuery, selected, StaffData]);
 
   const handleDelete = (id) => {
+    // 🔒 Protect the permanent system user
+    const targetUser = StaffData.find((u) => u._id === id);
+    if (targetUser?.email === PROTECTED_EMAIL) {
+      toast.error("This user is protected and cannot be deleted.");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     const token = localStorage.getItem("token");
@@ -594,20 +603,31 @@ useEffect(() => {
                           {item.role}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex space-x-2 text-white">
-                            <button
-                              className="hover:text-yellow-500 transition cursor-pointer"
-                              onClick={() => handleEdit(item)}
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              className="hover:text-red-500 transition cursor-pointer"
-                              onClick={() => handleDelete(item._id)}
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
+                          {item.email === PROTECTED_EMAIL ? (
+                            // 🔒 Protected user — view only
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-900/40 border border-emerald-700 px-2 py-1 rounded-full">
+                                <FaShieldAlt className="text-emerald-400" />
+                                Protected
+                              </span>
+                            </div>
+                          ) : (
+                            // Normal user — show edit & delete
+                            <div className="flex space-x-2 text-white">
+                              <button
+                                className="hover:text-yellow-500 transition cursor-pointer"
+                                onClick={() => handleEdit(item)}
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                className="hover:text-red-500 transition cursor-pointer"
+                                onClick={() => handleDelete(item._id)}
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))
