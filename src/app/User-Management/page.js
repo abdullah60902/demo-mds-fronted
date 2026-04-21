@@ -66,7 +66,7 @@ const StaffData = [
   },
 ];
 
-const PROTECTED_EMAIL = "info@mdssupport.coder.uk";
+const PROTECTED_EMAIL = "info@mdssupport.co.uk";
 
 const Page = () => {
   const { user, logout } = useAuth();
