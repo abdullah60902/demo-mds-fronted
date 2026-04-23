@@ -73,14 +73,14 @@ useEffect(() => {
 
   const token = localStorage.getItem("token");
 
-  fetch(`https://admin-panel-backend-alpha.vercel.app/client/${id}`, {
+  fetch(`https://demo-mds-backend.vercel.app/client/${id}`, {
     headers: { Authorization: `Bearer ${token}` }
   })
     .then(res => res.json())
     .then(data => setClient(data))
     .catch(err => console.log(err));
 
-     fetch(`https://admin-panel-backend-alpha.vercel.app/carePlanning/client/${id}`, {
+     fetch(`https://demo-mds-backend.vercel.app/carePlanning/client/${id}`, {
     headers: { Authorization: `Bearer ${token}` }
   })
     .then(res => res.json())
@@ -250,12 +250,12 @@ const tabs = [
     
     try {
         // Re-fetch fresh client data from API to ensure we have the latest
-        const freshClientRes = await fetch(`https://admin-panel-backend-alpha.vercel.app/client/${id}`, config);
+        const freshClientRes = await fetch(`https://demo-mds-backend.vercel.app/client/${id}`, config);
         const freshClient = await freshClientRes.json();
         // Also re-fetch care plans
         let freshCarePlans = clientcareplane;
         try {
-            const cpRes = await fetch(`https://admin-panel-backend-alpha.vercel.app/carePlanning/client/${id}`, config);
+            const cpRes = await fetch(`https://demo-mds-backend.vercel.app/carePlanning/client/${id}`, config);
             freshCarePlans = await cpRes.json();
         } catch(e) { console.warn("Could not refresh care plans"); }
 
@@ -506,7 +506,7 @@ const tabs = [
 
         // --- SECTION: PBS PLANS ---
         if (selectedExportModules.includes("pbs")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/pbs-plan/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/pbs-plan/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
                 sectionNum++;
@@ -555,7 +555,7 @@ const tabs = [
 
         // --- SECTION: RISK ASSESSMENTS ---
         if (selectedExportModules.includes("risk")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/risk-assessment/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/risk-assessment/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
                 sectionNum++;
@@ -605,9 +605,9 @@ const tabs = [
 
         // --- SECTION: MEDICATION (eMAR) ---
         if (selectedExportModules.includes("medication")) {
-            const resMeds = await fetch(`https://admin-panel-backend-alpha.vercel.app/medications/client/${id}`, config);
+            const resMeds = await fetch(`https://demo-mds-backend.vercel.app/medications/client/${id}`, config);
             const meds = await resMeds.json();
-            const resAdmin = await fetch(`https://admin-panel-backend-alpha.vercel.app/medication-administration`, config);
+            const resAdmin = await fetch(`https://demo-mds-backend.vercel.app/medication-administration`, config);
             const allAdmin = await resAdmin.json();
             const myAdmin = allAdmin.filter(a => (a.client?._id || a.client) === id);
 
@@ -665,7 +665,7 @@ const tabs = [
 
         // --- SECTION: GOALS ---
         if (selectedExportModules.includes("goals")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/goals/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/goals/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
                 sectionNum++;
@@ -705,7 +705,7 @@ const tabs = [
 
         // --- SECTION: DAILY LOGS ---
         if (selectedExportModules.includes("logs")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/daily-log/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/daily-log/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
                 sectionNum++;
@@ -742,7 +742,7 @@ const tabs = [
 
         // --- SECTION: CONSENT ---
         if (selectedExportModules.includes("consent")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/consent/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/consent/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
                 sectionNum++;
@@ -768,7 +768,7 @@ const tabs = [
 
         // --- SECTION: HANDOVERS ---
         if (selectedExportModules.includes("handovers")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/handover/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/handover/client/${id}`, config);
             const records = await res.json();
             if (records && records.length > 0) {
                 sectionNum++;
@@ -806,7 +806,7 @@ const tabs = [
             doc.setFontSize(18);
             doc.text(`${sectionNum}. Resident Documents`, 14, yPos);
             yPos += 8;
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/resident-documents/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/resident-documents/client/${id}`, config);
             const docs = await res.json();
             if (docs && Array.isArray(docs) && docs.length > 0) {
                 const groupedDocs = docs.reduce((acc, d) => {
@@ -864,7 +864,7 @@ const tabs = [
 
         // --- SECTION: ASSESSMENT ---
         if (selectedExportModules.includes("assessment")) {
-            const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/assessment/client/${id}`, config);
+            const res = await fetch(`https://demo-mds-backend.vercel.app/assessment/client/${id}`, config);
             const assessments = await res.json();
             if (assessments && Array.isArray(assessments) && assessments.length > 0) {
                 sectionNum++;
@@ -1260,7 +1260,7 @@ transition-all duration-300 gap-6"
           const formData = new FormData();
           formData.append("profileImage", file);
 
-          const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/client/${id}/photo`, {
+          const res = await fetch(`https://demo-mds-backend.vercel.app/client/${id}/photo`, {
             method: "PUT",
             headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
             body: formData,
@@ -1332,7 +1332,7 @@ transition-all duration-300 gap-6"
   onClick={async () => {
     if (!confirm("Are you sure you want to delete this resident profile? This action will permanently remove all associated records and cannot be undone.")) return;
 
-    const res = await fetch(`https://admin-panel-backend-alpha.vercel.app/client/${id}`, {
+    const res = await fetch(`https://demo-mds-backend.vercel.app/client/${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
