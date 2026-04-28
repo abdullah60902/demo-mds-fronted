@@ -149,9 +149,9 @@ const [forgotEmail, setForgotEmail] = useState('');
 
 
       <div className="mt-6 text-center text-sm">
-        <p className="text-gray-300 mb-2">
+        {/* <p className="text-gray-300 mb-2">
           Hint: Use email {`"`}mds@gmail.com{`"`} and password {`"`}mdssupport{`"`}
-        </p>
+        </p> */}
         <p className="text-gray-400">
           To Request a Demo, <a href="https://mdssupport.co.uk/#contact" target="_blank" rel="noopener noreferrer" className="text-[#4b4aac] hover:underline font-semibold">Contact Us for free Demo</a>
         </p>
