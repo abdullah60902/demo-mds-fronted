@@ -12,7 +12,7 @@ import {
 } from "react-icons/fa";
 import { MdOutlineMedication } from "react-icons/md";
 import axios from "axios";
-const ResidentProfileMedicationEMAR = ({ clientId }) => {
+const ResidentProfileMedicationEMAR = ({ clientId, userRole }) => {
   const [activeTab, setActiveTab] = useState("active"); // 'active' | 'history'
   const [medications, setMedications] = useState([]); // From /medications
   const [adminHistory, setAdminHistory] = useState([]); // From /medication-administration
@@ -23,6 +23,7 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
   const [selectedMedForAdmin, setSelectedMedForAdmin] = useState(null); // Which URL to record dose for
   const [viewItem, setViewItem] = useState(null);
   const [viewType, setViewType] = useState(null); // 'order' | 'history'
+  const isAdmin = userRole === "Admin";
   
   // Form State for Medication Order
   const [medForm, setMedForm] = useState({
@@ -316,7 +317,9 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
                                         <td className="px-4 py-3 flex gap-2">
                                             <button onClick={() => openAdminForm(m)} className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs" title="Record Dose">Record Dose</button>
                                             <button onClick={() => handleEditMed(m)} className="text-yellow-400 hover:text-yellow-300"><FaEdit /></button>
+                                            {isAdmin && (
                                             <button onClick={() => handleDeleteMedication(m._id)} className="text-red-400 hover:text-red-300"><FaTrash /></button>
+                                            )}
                                             <button onClick={() => handleView(m, 'order')} className="text-blue-400 hover:text-blue-300" title="View Details"><FaEye /></button>
                                         </td>
                                     </tr>
@@ -385,7 +388,9 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
                                         </td>
                                         <td className="px-4 py-3 text-white">{h.caregiverName}</td>
                                         <td className="px-4 py-3 flex gap-2">
+                                            {isAdmin && (
                                             <button onClick={() => handleDeleteHistory(h._id)} className="text-red-400 hover:text-red-300"><FaTrash /></button>
+                                            )}
                                             <button onClick={() => handleView(h, 'history')} className="text-blue-400 hover:text-blue-300" title="View Details"><FaEye /></button>
                                         </td>
                                     </tr>
@@ -586,6 +591,7 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
 
                 {viewType === 'order' && (
                     <>
+                        {isAdmin && (
                         <button
                         onClick={() => {
                             handleDeleteMedication(viewItem._id);
@@ -595,6 +601,7 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
                         >
                         Delete Order
                         </button>
+                        )}
 
                         <button
                         onClick={() => {
@@ -610,6 +617,7 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
 
                 {viewType === 'history' && (
                     <>
+                        {isAdmin && (
                         <button
                         onClick={() => {
                             handleDeleteHistory(viewItem._id);
@@ -619,6 +627,7 @@ const ResidentProfileMedicationEMAR = ({ clientId }) => {
                         >
                         Delete Record
                         </button>
+                        )}
 
                         <button
                         onClick={() => {

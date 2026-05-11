@@ -22,7 +22,7 @@ const initialFormData = {
   dietType: "",
 };
 
-const ResidentProfileCarePlan = React.forwardRef(({ clientId }, ref) => {
+const ResidentProfileCarePlan = React.forwardRef(({ clientId, userRole }, ref) => {
 ResidentProfileCarePlan.displayName = "ResidentProfileCarePlan";
 
   const [showForm, setShowForm] = useState(false);
@@ -37,6 +37,7 @@ ResidentProfileCarePlan.displayName = "ResidentProfileCarePlan";
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditingView, setIsEditingView] = useState(false);
+  const isAdmin = userRole === "Admin";
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -528,9 +529,11 @@ useEffect(() => {
 
   {/* Edit moved to View modal - removed inline edit button */}
 
+  {isAdmin && (
   <button onClick={() => handleDelete(item._id)} title="Delete">
     <FaTrash className="hover:text-red-400" />
   </button>
+  )}
 </td>
 
       </tr>
@@ -568,7 +571,9 @@ useEffect(() => {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => handleView(a)} className="text-blue-400">View</button>
+                        {isAdmin && (
                         <button onClick={() => handleDelete(a._id)} className="text-red-400">Delete</button>
+                        )}
                       </div>
                     </div>
                     {a.carePlanData && a.carePlanData.preparedBy && (
@@ -1656,6 +1661,29 @@ useEffect(() => {
 
 
                    
+                  {/* Document Attachments */}
+                  <div className="pt-2 border-t border-gray-600 mt-4 mb-4">
+                     <label className="text-sm text-gray-400 block mb-2">
+                       Supporting Documents (Images, PDFs, etc.)
+                     </label>
+                     <input
+                       type="file"
+                       multiple
+                       onChange={(e) => setAttachments(Array.from(e.target.files))}
+                       className="block w-full text-sm text-gray-400
+                         file:mr-4 file:py-2 file:px-4
+                         file:rounded file:border-0
+                         file:text-sm file:font-semibold
+                         file:bg-indigo-600 file:text-white
+                         hover:file:bg-indigo-700"
+                     />
+                     {attachments.length > 0 && (
+                       <div className="mt-2 text-xs text-gray-400">
+                         {attachments.length} file(s) selected
+                       </div>
+                     )}
+                  </div>
+
                   {/* Buttons */}
                   <div className="flex justify-between pt-4">
                     <button
@@ -1924,6 +1952,15 @@ useEffect(() => {
     >
       Update Care Plan
     </button>
+  )}
+  
+  {isAdmin && (
+  <button
+    onClick={() => { handleDelete(viewPlan._id); closeView(); }}
+    className="bg-red-700 px-4 py-2 rounded hover:bg-red-800 text-white"
+  >
+    Delete Plan
+  </button>
   )}
 </div>
 

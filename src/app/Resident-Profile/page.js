@@ -1387,6 +1387,7 @@ text-xs sm:text-sm md:text-base lg:text-lg"
 {activeTab === "about" && (
   <ResidentProfileAboutMe 
     clientId={id}
+    userRole={user?.role}
     isEditing={isEditing}
     onClientChange={(updatedClient) => setClient(updatedClient)}
   />
@@ -1396,50 +1397,50 @@ text-xs sm:text-sm md:text-base lg:text-lg"
 {/* Care Plans */}
 
 {activeTab === "care" && 
-<ResidentProfileCarePlan clientId={id} />
+<ResidentProfileCarePlan clientId={id} userRole={user?.role} />
 
 }
 
 {/* PBS Plans */}
 
 {activeTab === "pbs" && 
-<ResidentProfilePBSplan clientId={id} />
+<ResidentProfilePBSplan clientId={id} userRole={user?.role} />
 }
 
 {/* Risk Assessments */}
 
 {activeTab === "risk" && 
-<ResidentProfileRiskAssessment clientId={id}/>
+<ResidentProfileRiskAssessment clientId={id} userRole={user?.role}/>
  }
 
 {/* Goals & Outcomes */}
 
 {activeTab === "goals" && 
-<ResidentProfileGoalsOutcome clientId={id} />
+<ResidentProfileGoalsOutcome clientId={id} userRole={user?.role} />
  }
 
 {/* Daily Logs */}
 
 {activeTab === "logs" && 
-<ResidentProfileDailyLog clientId={id} />
+<ResidentProfileDailyLog clientId={id} userRole={user?.role} />
 }
 
 {/* Medication (eMAR) */}
 
 {activeTab === "medication" && 
-<ResidentProfileMedicationEMAR clientId={id} />
+<ResidentProfileMedicationEMAR clientId={id} userRole={user?.role} />
 }
 
 {/* Consent */}
 
 {activeTab === "consent" && 
-<ResidentProfileConsentForm clientId={id}/>
+<ResidentProfileConsentForm clientId={id} userRole={user?.role}/>
 }
 
 {/* Handovers */}
 
 {activeTab === "handovers" && 
-<ResidentProfileHandOver clientId={id} />
+<ResidentProfileHandOver clientId={id} userRole={user?.role} />
 }
 
 {/* Documents */}
@@ -1451,7 +1452,7 @@ text-xs sm:text-sm md:text-base lg:text-lg"
 {/* Assessment */}
 
 {activeTab === "assessment" && 
-<ResidentProfileAssessment clientId={id} />
+<ResidentProfileAssessment clientId={id} userRole={user?.role} />
 }
 
           </div>

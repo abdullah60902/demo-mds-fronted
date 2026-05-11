@@ -5,7 +5,7 @@ import { ASSESSMENT_TYPES, TEMPLATE_FIELDS } from "./assessmentTemplates";
 
 const API = "https://admin-panel-backend-alpha.vercel.app";
 
-const ResidentProfileAssessment = ({ clientId }) => {
+const ResidentProfileAssessment = ({ clientId, userRole }) => {
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -17,6 +17,7 @@ const ResidentProfileAssessment = ({ clientId }) => {
   const [staffMembers, setStaffMembers] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState("");
   const [clientData, setClientData] = useState(null);
+  const isAdmin = userRole === "Admin";
 
   // Dynamic data for special fields
   const [goals, setGoals] = useState([{ goal: "", timeframe: "", progress: "" }]);
@@ -1317,10 +1318,12 @@ const ResidentProfileAssessment = ({ clientId }) => {
                     className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm transition">
                     <FaEye /> View
                   </button>
+                  {isAdmin && (
                   <button onClick={() => handleDelete(a._id)}
                     className="flex items-center gap-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-3 py-1.5 rounded text-sm transition">
                     <FaTrash /> Delete
                   </button>
+                  )}
                 </div>
               </div>
             ))

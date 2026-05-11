@@ -11,13 +11,15 @@ import {
 } from "react-icons/fa";
 import { MdVerifiedUser } from "react-icons/md";
 
-const ResidentProfileConsentForm = ({ clientId }) => {
+const ResidentProfileConsentForm = ({ clientId, userRole }) => {
   const [consents, setConsents] = useState([]);
   const [archivedConsents, setArchivedConsents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [viewConsent, setViewConsent] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const isAdmin = userRole === "Admin";
 
   const [form, setForm] = useState({
     dolsInPlace: "",
@@ -61,6 +63,7 @@ const ResidentProfileConsentForm = ({ clientId }) => {
   const resetForm = () => {
     setEditingId(null);
     setForm({ dolsInPlace: "", authorizationEndDate: "", conditions: "" });
+    setAttachments([]);
     setShowForm(false);
   };
 
@@ -99,23 +102,27 @@ const ResidentProfileConsentForm = ({ clientId }) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
 
-    const payload = {
-      clientId,
-      dolsInPlace: form.dolsInPlace,
-      authorizationEndDate: form.authorizationEndDate,
-      conditions: form.conditions,
-    };
+    // Build FormData
+    const fd = new FormData();
+    fd.append("clientId", clientId);
+    fd.append("dolsInPlace", form.dolsInPlace);
+    fd.append("authorizationEndDate", form.authorizationEndDate);
+    fd.append("conditions", form.conditions);
+
+    attachments.forEach((file) => fd.append("attachments", file));
 
     try {
       if (editingId) {
         // Update
+        const existingConsent = consents.find(c => c._id === editingId);
+        if (existingConsent?.attachments) {
+          existingConsent.attachments.forEach(url => fd.append("oldAttachments", url));
+        }
+
         const res = await fetch(`https://demo-mds-backend.vercel.app/consent/${editingId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
         });
 
         if (res.ok) {
@@ -130,11 +137,8 @@ const ResidentProfileConsentForm = ({ clientId }) => {
         // Create
         const res = await fetch("https://demo-mds-backend.vercel.app/consent", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
         });
 
         if (res.ok) {
@@ -243,7 +247,9 @@ const ResidentProfileConsentForm = ({ clientId }) => {
                         <div className="flex space-x-3 text-white text-sm relative">
                            <button onClick={() => handleView(record)} className="hover:text-blue-500 cursor-pointer" title="View"><FaEye /></button>
                            <button onClick={() => handleEdit(record)} className="hover:text-yellow-400 cursor-pointer" title="Edit"><FaEdit /></button>
+                           {isAdmin && (
                            <button onClick={() => handleDelete(record._id)} className="hover:text-red-500 cursor-pointer" title="Delete"><FaTrash /></button>
+                           )}
                         </div>
                       </td>
                     </tr>
@@ -281,6 +287,29 @@ const ResidentProfileConsentForm = ({ clientId }) => {
                 <div>
                   <label className="text-sm text-gray-300">Conditions</label>
                   <textarea value={form.conditions} onChange={(e) => setForm({ ...form, conditions: e.target.value })} className="w-full p-2 bg-gray-700 rounded text-white" rows={3} placeholder="Enter any specific conditions..." />
+                </div>
+
+                {/* Document Attachments */}
+                <div className="pt-2 border-t border-gray-600 mt-2">
+                   <label className="text-sm text-gray-400 block mb-2">
+                     Supporting Documents (Images, PDFs, etc.)
+                   </label>
+                   <input
+                     type="file"
+                     multiple
+                     onChange={(e) => setAttachments(Array.from(e.target.files))}
+                     className="block w-full text-sm text-gray-400
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-indigo-600 file:text-white
+                       hover:file:bg-indigo-700"
+                   />
+                   {attachments.length > 0 && (
+                     <div className="mt-2 text-xs text-gray-400">
+                       {attachments.length} file(s) selected
+                     </div>
+                   )}
                 </div>
 
                 <div className="flex justify-between pt-4">
@@ -329,13 +358,36 @@ const ResidentProfileConsentForm = ({ clientId }) => {
                     </p>
                   </div>
                 )}
+
+                {/* Attachments */}
+                {viewConsent.attachments && viewConsent.attachments.length > 0 && (
+                  <div className="border-t border-gray-700 pt-4 mt-4">
+                    <h3 className="font-semibold mb-2">Attached Documents:</h3>
+                    <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+                      {viewConsent.attachments.map((url, idx) => (
+                        <li key={idx}>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 underline"
+                          >
+                            View Document {idx + 1}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 mt-8 flex-wrap">
                 <button onClick={closeView} className="bg-gray-600 px-4 py-1.5 rounded hover:bg-gray-700 text-sm">Close</button>
                 <button onClick={() => window.print()} className="bg-red-600 px-4 py-1.5 rounded hover:bg-red-700 text-sm text-white">Print</button>
                 <button onClick={() => handleDownloadPdf(viewConsent)} className="bg-green-600 px-4 py-1.5 rounded hover:bg-green-700 text-sm text-white">Export PDF</button>
+                {isAdmin && (
                 <button onClick={() => { handleDelete(viewConsent._id); closeView(); }} className="bg-red-700 px-4 py-1.5 rounded hover:bg-red-800 text-sm text-white">Delete</button>
+                )}
                 <button onClick={() => { handleEdit(viewConsent); closeView(); }} className="bg-blue-600 px-4 py-1.5 rounded hover:bg-blue-700 text-sm text-white">Edit</button>
               </div>
             </div>

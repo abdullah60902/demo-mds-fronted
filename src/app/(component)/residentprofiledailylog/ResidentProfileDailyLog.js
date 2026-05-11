@@ -11,13 +11,15 @@ import {
 } from "react-icons/fa";
 import { IoBookOutline } from "react-icons/io5";
 
-const ResidentProfileDailyLog = ({ clientId }) => {
+const ResidentProfileDailyLog = ({ clientId, userRole }) => {
   const [logs, setLogs] = useState([]);
   const [archivedLogs, setArchivedLogs] = useState([]);
   const [showLogForm, setShowLogForm] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
   const [viewLog, setViewLog] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const isAdmin = userRole === "Admin";
 
   const [logForm, setLogForm] = useState({
     dateTime: "",
@@ -65,6 +67,7 @@ const ResidentProfileDailyLog = ({ clientId }) => {
   const resetLogForm = () => {
     setEditingLogId(null);
     setLogForm({ dateTime: "", staffName: "", notes: "", moodEmoji: "", bristolScore: "", heartRate: "", healthQuick: "" });
+    setAttachments([]);
     setShowLogForm(false);
   };
 
@@ -107,27 +110,31 @@ const ResidentProfileDailyLog = ({ clientId }) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
 
-    const payload = {
-      clientId,
-      dateTime: logForm.dateTime,
-      staffName: logForm.staffName,
-      notes: logForm.notes,
-      moodEmoji: logForm.moodEmoji,
-      bristolScore: logForm.bristolScore,
-      heartRate: logForm.heartRate,
-      healthQuick: logForm.healthQuick,
-    };
+    // Build FormData
+    const fd = new FormData();
+    fd.append("clientId", clientId);
+    fd.append("dateTime", logForm.dateTime);
+    fd.append("staffName", logForm.staffName);
+    fd.append("notes", logForm.notes);
+    fd.append("moodEmoji", logForm.moodEmoji);
+    fd.append("bristolScore", logForm.bristolScore);
+    fd.append("heartRate", logForm.heartRate);
+    fd.append("healthQuick", logForm.healthQuick);
+
+    attachments.forEach((file) => fd.append("attachments", file));
 
     try {
       if (editingLogId) {
         // Update
+        const existingLog = logs.find(l => l._id === editingLogId);
+        if (existingLog?.attachments) {
+          existingLog.attachments.forEach(url => fd.append("oldAttachments", url));
+        }
+
         const res = await fetch(`https://demo-mds-backend.vercel.app/daily-log/${editingLogId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
         });
 
         if (res.ok) {
@@ -142,11 +149,8 @@ const ResidentProfileDailyLog = ({ clientId }) => {
         // Create
         const res = await fetch("https://demo-mds-backend.vercel.app/daily-log", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
         });
 
         if (res.ok) {
@@ -265,7 +269,9 @@ const ResidentProfileDailyLog = ({ clientId }) => {
                         <div className="flex space-x-3 text-white text-sm relative">
                            <button onClick={() => handleView(log)} className="hover:text-blue-500 cursor-pointer" title="View"><FaEye /></button>
                            <button onClick={() => handleEdit(log)} className="hover:text-yellow-400 cursor-pointer" title="Edit"><FaEdit /></button>
+                           {isAdmin && (
                            <button onClick={() => handleDelete(log._id)} className="hover:text-red-500 cursor-pointer" title="Delete"><FaTrash /></button>
+                           )}
                         </div>
                       </td>
                     </tr>
@@ -326,6 +332,29 @@ const ResidentProfileDailyLog = ({ clientId }) => {
                     <label className="text-sm text-gray-300">Heart Rate (BPM)</label>
                     <input type="number" min="0" value={logForm.heartRate} onChange={(e) => setLogForm({ ...logForm, heartRate: e.target.value })} className="w-full p-2 bg-gray-700 rounded text-white" />
                   </div>
+                </div>
+
+                {/* Document Attachments */}
+                <div className="pt-2 border-t border-gray-600 mt-2">
+                   <label className="text-sm text-gray-400 block mb-2">
+                     Supporting Documents (Images, PDFs, etc.)
+                   </label>
+                   <input
+                     type="file"
+                     multiple
+                     onChange={(e) => setAttachments(Array.from(e.target.files))}
+                     className="block w-full text-sm text-gray-400
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-indigo-600 file:text-white
+                       hover:file:bg-indigo-700"
+                   />
+                   {attachments.length > 0 && (
+                     <div className="mt-2 text-xs text-gray-400">
+                       {attachments.length} file(s) selected
+                     </div>
+                   )}
                 </div>
 
                 <div className="flex justify-between pt-4">
@@ -404,6 +433,27 @@ const ResidentProfileDailyLog = ({ clientId }) => {
                     </p>
                   </div>
                 )}
+
+                {/* Attachments */}
+                {viewLog.attachments && viewLog.attachments.length > 0 && (
+                  <div className="border-t border-gray-700 pt-4 mt-4">
+                    <h3 className="font-semibold mb-2">Attached Documents:</h3>
+                    <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+                      {viewLog.attachments.map((url, idx) => (
+                        <li key={idx}>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 underline"
+                          >
+                            View Document {idx + 1}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 mt-8 flex-wrap">
@@ -425,12 +475,14 @@ const ResidentProfileDailyLog = ({ clientId }) => {
                 >
                   Export PDF
                 </button>
+                {isAdmin && (
                 <button
                   onClick={() => { handleDelete(viewLog._id); closeView(); }}
                   className="bg-red-700 px-4 py-1.5 rounded hover:bg-red-800 text-sm text-white font-medium"
                 >
                   Delete
                 </button>
+                )}
                 <button
                   onClick={() => { handleEdit(viewLog); closeView(); }}
                   className="bg-blue-600 px-4 py-1.5 rounded hover:bg-blue-700 text-sm text-white font-medium"

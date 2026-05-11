@@ -11,13 +11,15 @@ import {
 } from "react-icons/fa";
 import { LuGoal } from "react-icons/lu";
 
-const ResidentProfileGoalsOutcome = ({ clientId }) => {
+const ResidentProfileGoalsOutcome = ({ clientId, userRole }) => {
   const [goals, setGoals] = useState([]);
   const [archivedGoals, setArchivedGoals] = useState([]);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState(null);
   const [viewGoal, setViewGoal] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const isAdmin = userRole === "Admin";
 
   const [goalForm, setGoalForm] = useState({
     title: "",
@@ -63,6 +65,7 @@ const ResidentProfileGoalsOutcome = ({ clientId }) => {
   const resetGoalForm = () => {
     setEditingGoalId(null);
     setGoalForm({ title: "", startDate: "", targetDate: "", metric: "", status: "" });
+    setAttachments([]);
     setShowGoalForm(false);
   };
 
@@ -103,25 +106,29 @@ const ResidentProfileGoalsOutcome = ({ clientId }) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
 
-    const payload = {
-      clientId,
-      title: goalForm.title,
-      startDate: goalForm.startDate,
-      targetDate: goalForm.targetDate,
-      metric: goalForm.metric,
-      status: goalForm.status,
-    };
+    // Build FormData
+    const fd = new FormData();
+    fd.append("clientId", clientId);
+    fd.append("title", goalForm.title);
+    fd.append("startDate", goalForm.startDate);
+    fd.append("targetDate", goalForm.targetDate);
+    fd.append("metric", goalForm.metric);
+    fd.append("status", goalForm.status);
+
+    attachments.forEach((file) => fd.append("attachments", file));
 
     try {
       if (editingGoalId) {
         // Update
+        const existingGoal = goals.find(g => g._id === editingGoalId);
+        if (existingGoal?.attachments) {
+          existingGoal.attachments.forEach(url => fd.append("oldAttachments", url));
+        }
+
         const res = await fetch(`https://demo-mds-backend.vercel.app/goals/${editingGoalId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
         });
 
         if (res.ok) {
@@ -136,11 +143,8 @@ const ResidentProfileGoalsOutcome = ({ clientId }) => {
         // Create
         const res = await fetch("https://demo-mds-backend.vercel.app/goals", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
         });
 
         if (res.ok) {
@@ -266,7 +270,9 @@ const ResidentProfileGoalsOutcome = ({ clientId }) => {
                         <div className="flex space-x-3 text-white text-sm">
                            <button onClick={() => handleView(g)} className="hover:text-blue-500 cursor-pointer" title="View"><FaEye /></button>
                            <button onClick={() => handleGoalEdit(g)} className="hover:text-yellow-400 cursor-pointer" title="Edit"><FaEdit /></button>
+                           {isAdmin && (
                            <button onClick={() => handleGoalDelete(g._id)} className="hover:text-red-500 cursor-pointer" title="Delete"><FaTrash /></button>
+                           )}
                         </div>
                       </td>
                     </tr>
@@ -316,6 +322,29 @@ const ResidentProfileGoalsOutcome = ({ clientId }) => {
                     <option value="In Progress">In Progress</option>
                     <option value="Complete">Complete</option>
                   </select>
+                </div>
+
+                {/* Document Attachments */}
+                <div className="pt-2 border-t border-gray-600 mt-2">
+                   <label className="text-sm text-gray-400 block mb-2">
+                     Supporting Documents (Images, PDFs, etc.)
+                   </label>
+                   <input
+                     type="file"
+                     multiple
+                     onChange={(e) => setAttachments(Array.from(e.target.files))}
+                     className="block w-full text-sm text-gray-400
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-indigo-600 file:text-white
+                       hover:file:bg-indigo-700"
+                   />
+                   {attachments.length > 0 && (
+                     <div className="mt-2 text-xs text-gray-400">
+                       {attachments.length} file(s) selected
+                     </div>
+                   )}
                 </div>
 
                 <div className="flex justify-between pt-4">
@@ -388,13 +417,36 @@ const ResidentProfileGoalsOutcome = ({ clientId }) => {
                     </div>
                   </div>
                 )}
+
+                {/* Attachments */}
+                {viewGoal.attachments && viewGoal.attachments.length > 0 && (
+                  <div className="border-t border-gray-700 pt-2 mt-4">
+                    <h3 className="font-semibold mb-2">Attached Documents:</h3>
+                    <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+                      {viewGoal.attachments.map((url, idx) => (
+                        <li key={idx}>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 underline"
+                          >
+                            View Document {idx + 1}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 mt-8 flex-wrap">
                 <button onClick={closeView} className="bg-gray-600 px-4 py-1.5 rounded hover:bg-gray-700 text-sm font-medium">Close</button>
                 <button onClick={() => window.print()} className="bg-red-600 px-4 py-1.5 rounded hover:bg-red-700 text-sm text-white font-medium">Print</button>
                 <button onClick={() => handleDownloadPdf(viewGoal)} className="bg-green-600 px-4 py-1.5 rounded hover:bg-green-700 text-sm text-white font-medium">Export PDF</button>
+                {isAdmin && (
                 <button onClick={() => { handleGoalDelete(viewGoal._id); closeView(); }} className="bg-red-700 px-4 py-1.5 rounded hover:bg-red-800 text-sm text-white font-medium">Delete</button>
+                )}
                 <button onClick={() => { handleGoalEdit(viewGoal); closeView(); }} className="bg-blue-600 px-4 py-1.5 rounded hover:bg-blue-700 text-sm text-white font-medium">Edit</button>
               </div>
             </div>
